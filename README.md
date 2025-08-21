@@ -5,5 +5,5 @@
 
 
 
-GoOpenAI is a golang sdk library for OpenAI.
+GoOpenAI is a golang client library for OpenAI API.
 

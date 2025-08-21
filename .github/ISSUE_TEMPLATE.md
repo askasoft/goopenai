@@ -14,7 +14,7 @@
 package main
 
 import (
-	"github.com/askasoft/gofresh/fdk/freshdesk"
+	"github.com/askasoft/goopenai/openai"
 )
 
 func main() {
@@ -24,5 +24,5 @@ func main() {
 ## Environment
 
 - go version:
-- xin version (or commit ref):
+- goopenai version (or commit ref):
 - operating system:
