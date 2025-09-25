@@ -30,6 +30,14 @@ func (oai *OpenAI) endpoint(format string, a ...any) string {
 	return "https://" + oai.Domain + "/v1" + fmt.Sprintf(format, a...)
 }
 
+func (oai *OpenAI) shouldRetry(err error) bool {
+	sr := oai.ShouldRetry
+	if sr == nil {
+		sr = shouldRetry
+	}
+	return sr(err)
+}
+
 func (oai *OpenAI) call(req *http.Request) (res *http.Response, err error) {
 	client := &http.Client{
 		Transport: oai.Transport,
@@ -44,11 +52,18 @@ func (oai *OpenAI) call(req *http.Request) (res *http.Response, err error) {
 
 	res, err = client.Do(req)
 	if err != nil {
+		if oai.shouldRetry(err) {
+			err = ret.NewRetryError(err, oai.RetryAfter)
+		}
 		return res, err
 	}
 
 	httplog.TraceHttpResponse(oai.Logger, res, rid)
 	return res, nil
+}
+
+func (oai *OpenAI) RetryForError(ctx context.Context, api func() error) (err error) {
+	return ret.RetryForError(ctx, api, oai.MaxRetries, oai.Logger)
 }
 
 func (oai *OpenAI) authenticate(req *http.Request) {
@@ -60,18 +75,10 @@ func (oai *OpenAI) authenticate(req *http.Request) {
 }
 
 func (oai *OpenAI) doCall(req *http.Request, result any) error {
-	sr := oai.ShouldRetry
-	if sr == nil {
-		sr = shouldRetry
-	}
-
 	oai.authenticate(req)
 
 	res, err := oai.call(req)
 	if err != nil {
-		if sr(err) {
-			return ret.NewRetryError(err, oai.RetryAfter)
-		}
 		return err
 	}
 	defer iox.DrainAndClose(res.Body)
@@ -87,16 +94,16 @@ func (oai *OpenAI) doCall(req *http.Request, result any) error {
 	re := newResultError(res)
 	_ = decoder.Decode(re)
 
-	if sr(re) {
+	if oai.shouldRetry(re) {
 		re.RetryAfter = oai.RetryAfter
 	}
 	return re
 }
 
-func (oai *OpenAI) doPostWithRetry(ctx context.Context, url string, source, result any) error {
-	return ret.RetryForError(ctx, func() error {
+func (oai *OpenAI) DoPost(ctx context.Context, url string, source, result any) error {
+	return oai.RetryForError(ctx, func() error {
 		return oai.doPost(ctx, url, source, result)
-	}, oai.MaxRetries, oai.Logger)
+	})
 }
 
 func (oai *OpenAI) doPost(ctx context.Context, url string, source, result any) error {
@@ -121,7 +128,7 @@ func (oai *OpenAI) CreateChatCompletion(ctx context.Context, req *ChatCompletion
 	url := oai.endpoint("/chat/completions")
 
 	res := &ChatCompletionResponse{}
-	err := oai.doPostWithRetry(ctx, url, req, res)
+	err := oai.DoPost(ctx, url, req, res)
 	return res, err
 }
 
@@ -130,6 +137,6 @@ func (oai *OpenAI) CreateTextEmbeddings(ctx context.Context, req *TextEmbeddings
 	url := oai.endpoint("/embeddings")
 
 	res := &TextEmbeddingsResponse{}
-	err := oai.doPostWithRetry(ctx, url, req, res)
+	err := oai.DoPost(ctx, url, req, res)
 	return res, err
 }

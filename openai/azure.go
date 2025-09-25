@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/askasoft/pango/iox"
 	"github.com/askasoft/pango/log"
 	"github.com/askasoft/pango/log/httplog"
 	"github.com/askasoft/pango/ret"
@@ -31,6 +32,14 @@ func (aoai *AzureOpenAI) endpoint(format string, a ...any) string {
 	return "https://" + aoai.Domain + "/openai/deployments/" + aoai.Deployment + fmt.Sprintf(format, a...) + "?api-version=" + aoai.Apiver
 }
 
+func (aoai *AzureOpenAI) shouldRetry(err error) bool {
+	sr := aoai.ShouldRetry
+	if sr == nil {
+		sr = shouldRetry
+	}
+	return sr(err)
+}
+
 func (aoai *AzureOpenAI) call(req *http.Request) (res *http.Response, err error) {
 	client := &http.Client{
 		Transport: aoai.Transport,
@@ -45,11 +54,18 @@ func (aoai *AzureOpenAI) call(req *http.Request) (res *http.Response, err error)
 
 	res, err = client.Do(req)
 	if err != nil {
+		if aoai.shouldRetry(err) {
+			err = ret.NewRetryError(err, aoai.RetryAfter)
+		}
 		return res, err
 	}
 
 	httplog.TraceHttpResponse(aoai.Logger, res, rid)
 	return res, nil
+}
+
+func (aoai *AzureOpenAI) RetryForError(ctx context.Context, api func() error) (err error) {
+	return ret.RetryForError(ctx, api, aoai.MaxRetries, aoai.Logger)
 }
 
 func (aoai *AzureOpenAI) authenticate(req *http.Request) {
@@ -61,20 +77,13 @@ func (aoai *AzureOpenAI) authenticate(req *http.Request) {
 }
 
 func (aoai *AzureOpenAI) doCall(req *http.Request, result any) error {
-	sr := aoai.ShouldRetry
-	if sr == nil {
-		sr = shouldRetry
-	}
-
 	aoai.authenticate(req)
 
 	res, err := aoai.call(req)
 	if err != nil {
-		if sr(err) {
-			return ret.NewRetryError(err, aoai.RetryAfter)
-		}
 		return err
 	}
+	defer iox.DrainAndClose(res.Body)
 
 	decoder := json.NewDecoder(res.Body)
 	if res.StatusCode == http.StatusOK {
@@ -87,16 +96,16 @@ func (aoai *AzureOpenAI) doCall(req *http.Request, result any) error {
 	re := newResultError(res)
 	_ = decoder.Decode(re)
 
-	if sr(re) {
+	if aoai.shouldRetry(re) {
 		re.RetryAfter = aoai.RetryAfter
 	}
 	return re
 }
 
-func (aoai *AzureOpenAI) doPostWithRetry(ctx context.Context, url string, source, result any) error {
-	return ret.RetryForError(ctx, func() error {
+func (aoai *AzureOpenAI) DoPost(ctx context.Context, url string, source, result any) error {
+	return aoai.RetryForError(ctx, func() error {
 		return aoai.doPost(ctx, url, source, result)
-	}, aoai.MaxRetries, aoai.Logger)
+	})
 }
 
 func (aoai *AzureOpenAI) doPost(ctx context.Context, url string, source, result any) error {
@@ -121,7 +130,7 @@ func (aoai *AzureOpenAI) CreateChatCompletion(ctx context.Context, req *ChatComp
 	url := aoai.endpoint("/chat/completions")
 
 	res := &ChatCompletionResponse{}
-	err := aoai.doPostWithRetry(ctx, url, req, res)
+	err := aoai.DoPost(ctx, url, req, res)
 	return res, err
 }
 
@@ -130,6 +139,6 @@ func (aoai *AzureOpenAI) CreateTextEmbeddings(ctx context.Context, req *TextEmbe
 	url := aoai.endpoint("/embeddings")
 
 	res := &TextEmbeddingsResponse{}
-	err := aoai.doPostWithRetry(ctx, url, req, res)
+	err := aoai.DoPost(ctx, url, req, res)
 	return res, err
 }
