@@ -44,13 +44,7 @@ func (oai *OpenAI) call(req *http.Request) (res *http.Response, err error) {
 		Timeout:   oai.Timeout,
 	}
 
-	if log := oai.Logger; log != nil {
-		log.Debugf("%s %s", req.Method, req.URL)
-	}
-
-	rid := httplog.TraceHttpRequest(oai.Logger, req)
-
-	res, err = client.Do(req)
+	res, err = httplog.TraceClientDo(oai.Logger, client, req)
 	if err != nil {
 		if oai.shouldRetry(err) {
 			err = ret.NewRetryError(err, oai.RetryAfter)
@@ -58,7 +52,6 @@ func (oai *OpenAI) call(req *http.Request) (res *http.Response, err error) {
 		return res, err
 	}
 
-	httplog.TraceHttpResponse(oai.Logger, res, rid)
 	return res, nil
 }
 
