@@ -13,7 +13,10 @@ import (
 	"github.com/askasoft/pango/ret"
 )
 
-type AzureOpenAI struct {
+// alias for AzureClient
+type AzureOpenAI = AzureClient
+
+type AzureClient struct {
 	Domain     string
 	Apikey     string
 	Apiver     string
@@ -28,28 +31,28 @@ type AzureOpenAI struct {
 	ShouldRetry func(error) bool // default retry on not canceled error or (status = 429 || (status >= 500 && status <= 599))
 }
 
-func (aoai *AzureOpenAI) endpoint(format string, a ...any) string {
-	return "https://" + aoai.Domain + "/openai/deployments/" + aoai.Deployment + fmt.Sprintf(format, a...) + "?api-version=" + aoai.Apiver
+func (c *AzureClient) endpoint(format string, args ...any) string {
+	return "https://" + c.Domain + "/openai/deployments/" + c.Deployment + fmt.Sprintf(format, args...) + "?api-version=" + c.Apiver
 }
 
-func (aoai *AzureOpenAI) shouldRetry(err error) bool {
-	sr := aoai.ShouldRetry
+func (c *AzureClient) shouldRetry(err error) bool {
+	sr := c.ShouldRetry
 	if sr == nil {
 		sr = shouldRetry
 	}
 	return sr(err)
 }
 
-func (aoai *AzureOpenAI) call(req *http.Request) (res *http.Response, err error) {
+func (c *AzureClient) call(req *http.Request) (res *http.Response, err error) {
 	client := &http.Client{
-		Transport: aoai.Transport,
-		Timeout:   aoai.Timeout,
+		Transport: c.Transport,
+		Timeout:   c.Timeout,
 	}
 
-	res, err = httplog.TraceClientDo(aoai.Logger, client, req)
+	res, err = httplog.TraceClientDo(c.Logger, client, req)
 	if err != nil {
-		if aoai.shouldRetry(err) {
-			err = ret.NewRetryError(err, aoai.RetryAfter)
+		if c.shouldRetry(err) {
+			err = ret.NewRetryError(err, c.RetryAfter)
 		}
 		return res, err
 	}
@@ -57,22 +60,22 @@ func (aoai *AzureOpenAI) call(req *http.Request) (res *http.Response, err error)
 	return res, nil
 }
 
-func (aoai *AzureOpenAI) RetryForError(ctx context.Context, api func() error) (err error) {
-	return ret.RetryForError(ctx, api, aoai.MaxRetries, aoai.Logger)
+func (c *AzureClient) RetryForError(ctx context.Context, api func() error) (err error) {
+	return ret.RetryForError(ctx, api, c.MaxRetries, c.Logger)
 }
 
-func (aoai *AzureOpenAI) authenticate(req *http.Request) {
+func (c *AzureClient) authenticate(req *http.Request) {
 	if req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", contentTypeJSON)
 	}
 
-	req.Header.Set("API-KEY", aoai.Apikey)
+	req.Header.Set("API-KEY", c.Apikey)
 }
 
-func (aoai *AzureOpenAI) doCall(req *http.Request, result any) error {
-	aoai.authenticate(req)
+func (c *AzureClient) doCall(req *http.Request, result any) error {
+	c.authenticate(req)
 
-	res, err := aoai.call(req)
+	res, err := c.call(req)
 	if err != nil {
 		return err
 	}
@@ -89,19 +92,19 @@ func (aoai *AzureOpenAI) doCall(req *http.Request, result any) error {
 	re := newResultError(res)
 	_ = decoder.Decode(re)
 
-	if aoai.shouldRetry(re) {
-		re.RetryAfter = aoai.RetryAfter
+	if c.shouldRetry(re) {
+		re.RetryAfter = c.RetryAfter
 	}
 	return re
 }
 
-func (aoai *AzureOpenAI) DoPost(ctx context.Context, url string, source, result any) error {
-	return aoai.RetryForError(ctx, func() error {
-		return aoai.doPost(ctx, url, source, result)
+func (c *AzureClient) DoPost(ctx context.Context, url string, source, result any) error {
+	return c.RetryForError(ctx, func() error {
+		return c.doPost(ctx, url, source, result)
 	})
 }
 
-func (aoai *AzureOpenAI) doPost(ctx context.Context, url string, source, result any) error {
+func (c *AzureClient) doPost(ctx context.Context, url string, source, result any) error {
 	buf, ct, err := buildJsonRequest(source)
 	if err != nil {
 		return err
@@ -115,23 +118,23 @@ func (aoai *AzureOpenAI) doPost(ctx context.Context, url string, source, result 
 		req.Header.Set("Content-Type", ct)
 	}
 
-	return aoai.doCall(req, result)
+	return c.doCall(req, result)
 }
 
 // https://platform.openai.com/docs/api-reference/chat/create
-func (aoai *AzureOpenAI) CreateChatCompletion(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, error) {
-	url := aoai.endpoint("/chat/completions")
+func (c *AzureClient) CreateChatCompletion(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, error) {
+	url := c.endpoint("/chat/completions")
 
 	res := &ChatCompletionResponse{}
-	err := aoai.DoPost(ctx, url, req, res)
+	err := c.DoPost(ctx, url, req, res)
 	return res, err
 }
 
 // https://platform.openai.com/docs/api-reference/embeddings/create
-func (aoai *AzureOpenAI) CreateTextEmbeddings(ctx context.Context, req *TextEmbeddingsRequest) (*TextEmbeddingsResponse, error) {
-	url := aoai.endpoint("/embeddings")
+func (c *AzureClient) CreateTextEmbeddings(ctx context.Context, req *TextEmbeddingsRequest) (*TextEmbeddingsResponse, error) {
+	url := c.endpoint("/embeddings")
 
 	res := &TextEmbeddingsResponse{}
-	err := aoai.DoPost(ctx, url, req, res)
+	err := c.DoPost(ctx, url, req, res)
 	return res, err
 }
