@@ -217,7 +217,14 @@ type ChatCompletionRequest struct {
 	// Defaults to 0
 	PresencePenalty float64 `json:"presence_penalty,omitempty"`
 
-	// ReasoningEffort Constrains effort on reasoning for reasoning models. Currently supported values are low, medium, and high. Reducing reasoning effort can result in faster responses and fewer tokens used on reasoning in a response.
+	// Used by OpenAI to cache responses for similar requests to optimize your cache hit rates.
+	PromptCacheKey string `json:"prompt_cache_key,omitempty"`
+
+	// The retention policy for the prompt cache. Set to 24h to enable extended prompt caching, which keeps cached prefixes active for longer, up to a maximum of 24 hours.
+	PromptCacheRetention string `json:"prompt_cache_retention,omitempty"`
+
+	// ReasoningEffort Constrains effort on reasoning for reasoning models. Currently supported values are low, medium, and high.
+	// Reducing reasoning effort can result in faster responses and fewer tokens used on reasoning in a response.
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 
 	// An object specifying the format that the model must output.
@@ -230,10 +237,8 @@ type ChatCompletionRequest struct {
 	// which indicates the generation exceeded max_tokens or the conversation exceeded the max context length.
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 
-	// This feature is in Beta. If specified, our system will make a best effort to sample deterministically,
-	// such that repeated requests with the same seed and parameters should return the same result.
-	// Determinism is not guaranteed, and you should refer to the system_fingerprint response parameter to monitor changes in the backend.
-	Seed int `json:"seed,omitempty"`
+	// A stable identifier used to help detect users of your application that may be violating OpenAI's usage policies. The IDs should be a string that uniquely identifies each user. We recommend hashing their username or email address, in order to avoid sending us any identifying information.
+	SafetyIdentifier string `json:"safety_identifier,omitempty"`
 
 	// Specifies the latency tier to use for processing the request. This parameter is relevant for customers subscribed to the scale tier service:
 	//
@@ -283,8 +288,9 @@ type ChatCompletionRequest struct {
 	// Defaults to 1
 	TopP float64 `json:"top_p,omitempty"`
 
-	// A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
-	User string `json:"user,omitempty"`
+	// Constrains the verbosity of the model's response. Lower values will result in more concise responses, while higher values will result in more verbose responses. Currently supported values are low, medium, and high.
+	// Defaults to medium
+	Verbosity string `json:"verbosity,omitempty"`
 
 	// This tool searches the web for relevant results to use in a response. Learn more about the web search tool.
 	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty"`
@@ -442,14 +448,13 @@ func (cu *ChatUsage) String() string {
 }
 
 type ChatCompletionResponse struct {
-	ID                string        `json:"id,omitempty"`
-	Choices           []*ChatChoice `json:"choices,omitempty"`
-	Created           int64         `json:"created,omitempty"`
-	Model             string        `json:"model,omitempty"`
-	ServiceTier       string        `json:"service_tier,omitempty"`
-	SystemFingerprint string        `json:"system_fingerprint,omitempty"`
-	Object            string        `json:"object,omitempty"`
-	Usage             ChatUsage     `json:"usage,omitempty"`
+	ID          string        `json:"id,omitempty"`
+	Choices     []*ChatChoice `json:"choices,omitempty"`
+	Created     int64         `json:"created,omitempty"`
+	Model       string        `json:"model,omitempty"`
+	ServiceTier string        `json:"service_tier,omitempty"`
+	Object      string        `json:"object,omitempty"`
+	Usage       ChatUsage     `json:"usage,omitempty"`
 }
 
 func (cc *ChatCompletionResponse) String() string {
