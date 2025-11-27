@@ -54,10 +54,8 @@ func (c *AzureClient) call(req *http.Request) (res *http.Response, err error) {
 		if c.shouldRetry(err) {
 			err = ret.NewRetryError(err, c.RetryAfter)
 		}
-		return res, err
 	}
-
-	return res, nil
+	return
 }
 
 func (c *AzureClient) RetryForError(ctx context.Context, api func() error) (err error) {

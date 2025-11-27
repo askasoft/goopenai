@@ -52,10 +52,8 @@ func (c *Client) call(req *http.Request) (res *http.Response, err error) {
 		if c.shouldRetry(err) {
 			err = ret.NewRetryError(err, c.RetryAfter)
 		}
-		return res, err
 	}
-
-	return res, nil
+	return
 }
 
 func (c *Client) RetryForError(ctx context.Context, api func() error) (err error) {
