@@ -12,6 +12,11 @@ const (
 	RoleUser      = "user"
 	RoleAssistant = "assistant"
 	RoleTool      = "tool"
+
+	TypeText       = "text"
+	TypeImageURL   = "image_url"
+	TypeInputAudio = "input_audio"
+	TypeFile       = "file"
 )
 
 type ChatMessage struct {

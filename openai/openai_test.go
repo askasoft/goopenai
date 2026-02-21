@@ -96,9 +96,9 @@ func TestOpenAIImageAnalyze(t *testing.T) {
 		Messages: []*ChatMessage{
 			{
 				Role: RoleUser,
-				Content: []*MessageContent{
-					{Type: "text", Text: "画像の中に「個人情報が含まれているかどうか」を判定してください。"},
-					{Type: "image_url", ImageURL: &ImageURL{
+				Content: []MessageContent{
+					{Type: TypeText, Text: "画像の中に「個人情報が含まれているかどうか」を判定してください。"},
+					{Type: TypeImageURL, ImageURL: &ImageURL{
 						URL: "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/50012396079/original/j3UQrTiD9AcapYi98QjFjTKXptsLq4TSBA.png?1720516588",
 					}},
 				},
