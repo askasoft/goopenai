@@ -2,7 +2,10 @@ package openai
 
 import (
 	"fmt"
+	"mime"
+	"path/filepath"
 
+	"github.com/askasoft/pango/net/dataurl"
 	"github.com/askasoft/pango/str"
 )
 
@@ -93,6 +96,38 @@ type MessageContent struct {
 	ImageURL   *ImageURL   `json:"image_url,omitempty"`
 	InputAudio *InputAudio `json:"input_audio,omitempty"`
 	File       *InputFile  `json:"file,omitempty"`
+}
+
+func NewTextMessage(text string) *MessageContent {
+	return &MessageContent{Type: TypeText, Text: text}
+}
+
+func NewImageDataMessage(name string, data []byte, detail string) *MessageContent {
+	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(name)), "image/jpeg")
+	dataURL := dataurl.Encode(mediaType, data)
+	return &MessageContent{Type: TypeImageURL, ImageURL: &ImageURL{URL: dataURL, Detail: detail}}
+}
+
+func NewImageURLMessage(url, detail string) *MessageContent {
+	return &MessageContent{Type: TypeImageURL, ImageURL: &ImageURL{URL: url, Detail: detail}}
+}
+
+func NewAudioDataMessage(name string, data []byte) *MessageContent {
+	ext := str.IfEmpty(filepath.Ext(name), ".mp3")
+	format := str.TrimPrefix(ext, ".")
+	mediaType := str.IfEmpty(mime.TypeByExtension(ext), "audio/mp3")
+	dataURL := dataurl.Encode(mediaType, data)
+	return &MessageContent{Type: TypeInputAudio, InputAudio: &InputAudio{Format: format, Data: dataURL}}
+}
+
+func NewInputAudioMessage(format, dataURL string) *MessageContent {
+	return &MessageContent{Type: TypeInputAudio, InputAudio: &InputAudio{Format: format, Data: dataURL}}
+}
+
+func NewFileDataMessage(filename string, data []byte) *MessageContent {
+	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(filename)), "application/octet-stream")
+	dataURL := dataurl.Encode(mediaType, data)
+	return &MessageContent{Type: TypeFile, File: &InputFile{Filename: filename, FileData: dataURL}}
 }
 
 type ChatFunction struct {
