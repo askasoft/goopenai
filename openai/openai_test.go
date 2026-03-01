@@ -10,6 +10,7 @@ import (
 
 	"github.com/askasoft/goopenai/openai/chat/completions"
 	"github.com/askasoft/goopenai/openai/embeddings"
+	"github.com/askasoft/goopenai/openai/responses"
 	"github.com/askasoft/pango/fsu"
 	"github.com/askasoft/pango/log"
 )
@@ -45,6 +46,64 @@ func testNewOpenAI(t *testing.T) *Client {
 	}
 
 	return oai
+}
+
+func TestOpenAICreateTextEmbeddingsAda002(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	req := &embeddings.TextEmbeddingsRequest{
+		Model: "text-embedding-ada-002",
+		Input: []string{"あなたはだれですか？"},
+	}
+
+	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
+	if err != nil {
+		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
+	} else {
+		fmt.Println(len(res.Embedding()), res.Usage)
+	}
+}
+
+func TestOpenAICreateTextEmbeddings3Small(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	req := &embeddings.TextEmbeddingsRequest{
+		Model: "text-embedding-3-small",
+		Input: []string{"あなたはだれですか？"},
+	}
+
+	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
+	if err != nil {
+		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
+	} else {
+		fmt.Println(len(res.Embedding()), res.Usage)
+	}
+}
+
+func TestOpenAICreateTextEmbeddings3LargeWithDimensions(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	req := &embeddings.TextEmbeddingsRequest{
+		Model:      "text-embedding-3-large",
+		Input:      []string{"あなたはだれですか？"},
+		Dimensions: 1536,
+	}
+
+	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
+	if err != nil {
+		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
+	} else {
+		fmt.Println(len(res.Embedding()), res.Usage)
+	}
 }
 
 func TestOpenAICreateChatCompletion(t *testing.T) {
@@ -131,7 +190,7 @@ func TestOpenAIImageAnalyze(t *testing.T) {
 	fmt.Println(res.Usage.String())
 }
 
-func TestOpenAIFiles(t *testing.T) {
+func TestOpenAICompeletionsFiles(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
@@ -166,60 +225,47 @@ func TestOpenAIFiles(t *testing.T) {
 	}
 }
 
-func TestOpenAICreateTextEmbeddingsAda002(t *testing.T) {
+func TestOpenAIResponsesFiles(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
 	}
 
-	req := &embeddings.TextEmbeddingsRequest{
-		Model: "text-embedding-ada-002",
-		Input: []string{"あなたはだれですか？"},
+	files := []string{
+		"earth.xlsx",
+		"earth.pdf",
+		"earth.docx",
+		"earth.pptx",
+		"earth.txt",
+		"earth.csv",
+		// "earth.tsv", // unsupport
 	}
 
-	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
-	if err != nil {
-		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
-	} else {
-		fmt.Println(len(res.Embedding()), res.Usage)
-	}
-}
+	for i, file := range files {
+		data := testReadFile(t, file)
 
-func TestOpenAICreateTextEmbeddings3Small(t *testing.T) {
-	oai := testNewOpenAI(t)
-	if oai == nil {
-		return
-	}
+		req := &responses.CreateRequest{
+			Model: "gpt-5.2",
+			Input: []responses.ResponseMessage{
+				{
+					Role: RoleUser,
+					Content: []responses.ResponseMessageContent{
+						responses.TextContent("ファイルの中に「個人情報が含まれているかどうか」を判定してください。"),
+						responses.FileDataContent(file, data),
+					},
+				},
+			},
+		}
 
-	req := &embeddings.TextEmbeddingsRequest{
-		Model: "text-embedding-3-small",
-		Input: []string{"あなたはだれですか？"},
-	}
+		res, err := oai.CreateResponse(context.TODO(), req)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateResponse(): %v", i, err)
+			continue
+		}
 
-	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
-	if err != nil {
-		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
-	} else {
-		fmt.Println(len(res.Embedding()), res.Usage)
-	}
-}
-
-func TestOpenAICreateTextEmbeddings3LargeWithDimensions(t *testing.T) {
-	oai := testNewOpenAI(t)
-	if oai == nil {
-		return
-	}
-
-	req := &embeddings.TextEmbeddingsRequest{
-		Model:      "text-embedding-3-large",
-		Input:      []string{"あなたはだれですか？"},
-		Dimensions: 1536,
-	}
-
-	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
-	if err != nil {
-		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
-	} else {
-		fmt.Println(len(res.Embedding()), res.Usage)
+		fmt.Println("-------------------------------------------")
+		fmt.Println(res)
+		fmt.Println("-------------------------------------------")
+		fmt.Println(res.OutputText())
 	}
 }

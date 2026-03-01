@@ -10,6 +10,7 @@ import (
 
 	"github.com/askasoft/goopenai/openai/chat/completions"
 	"github.com/askasoft/goopenai/openai/embeddings"
+	"github.com/askasoft/goopenai/openai/responses"
 	"github.com/askasoft/pango/iox"
 	"github.com/askasoft/pango/log"
 	"github.com/askasoft/pango/log/httplog"
@@ -154,6 +155,15 @@ func (c *Client) doPost(ctx context.Context, url string, source, result any) err
 	return c.doCall(req, result)
 }
 
+// https://platform.openai.com/docs/api-reference/embeddings/create
+func (c *Client) CreateTextEmbeddings(ctx context.Context, req *embeddings.TextEmbeddingsRequest) (*embeddings.TextEmbeddingsResponse, error) {
+	url := c.endpoint("/embeddings")
+
+	res := &embeddings.TextEmbeddingsResponse{}
+	err := c.DoPost(ctx, url, req, res)
+	return res, err
+}
+
 // https://platform.openai.com/docs/api-reference/chat/create
 func (c *Client) CreateChatCompletion(ctx context.Context, req *completions.ChatCompletionRequest) (*completions.ChatCompletionResponse, error) {
 	url := c.endpoint("/chat/completions")
@@ -163,11 +173,11 @@ func (c *Client) CreateChatCompletion(ctx context.Context, req *completions.Chat
 	return res, err
 }
 
-// https://platform.openai.com/docs/api-reference/embeddings/create
-func (c *Client) CreateTextEmbeddings(ctx context.Context, req *embeddings.TextEmbeddingsRequest) (*embeddings.TextEmbeddingsResponse, error) {
-	url := c.endpoint("/embeddings")
+// https://developers.openai.com/api/reference/resources/responses/methods/create
+func (c *Client) CreateResponse(ctx context.Context, req *responses.CreateRequest) (*responses.CreateResponse, error) {
+	url := c.endpoint("/responses")
 
-	res := &embeddings.TextEmbeddingsResponse{}
+	res := &responses.CreateResponse{}
 	err := c.DoPost(ctx, url, req, res)
 	return res, err
 }
