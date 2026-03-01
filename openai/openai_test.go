@@ -4,13 +4,30 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/askasoft/goopenai/openai/chat/completions"
+	"github.com/askasoft/goopenai/openai/embeddings"
+	"github.com/askasoft/pango/fsu"
 	"github.com/askasoft/pango/log"
 )
 
-func testNewOpenAI(t *testing.T) *OpenAI {
+func testFilename(name string) string {
+	return filepath.Join("testdata", name)
+}
+
+func testReadFile(t *testing.T, name string) []byte {
+	fn := testFilename(name)
+	bs, err := fsu.ReadFile(fn)
+	if err != nil {
+		t.Fatalf("Failed to read file %q: %v", fn, err)
+	}
+	return bs
+}
+
+func testNewOpenAI(t *testing.T) *Client {
 	apikey := os.Getenv("OPENAI_APIKEY")
 	if apikey == "" {
 		t.Skip("OPENAI_APIKEY not set")
@@ -19,9 +36,9 @@ func testNewOpenAI(t *testing.T) *OpenAI {
 
 	logs := log.NewLog()
 	logs.SetLevel(log.LevelDebug)
-	oai := &OpenAI{
-		Domain:     "api.openai.com",
-		Apikey:     apikey,
+	oai := &Client{
+		BaseURL:    OpenAIBaseURL,
+		APIKey:     apikey,
 		Logger:     logs.GetLogger("OPENAI"),
 		MaxRetries: 1,
 		RetryAfter: time.Second * 3,
@@ -36,9 +53,9 @@ func TestOpenAICreateChatCompletion(t *testing.T) {
 		return
 	}
 
-	req := &ChatCompletionRequest{
+	req := &completions.ChatCompletionRequest{
 		Model: "gpt-3.5-turbo",
-		Messages: []*ChatMessage{
+		Messages: []completions.ChatMessage{
 			{Role: RoleUser, Content: "あなたはだれですか？"},
 		},
 	}
@@ -59,16 +76,16 @@ func TestOpenAIWebSearchTool(t *testing.T) {
 		return
 	}
 
-	req := &ChatCompletionRequest{
+	req := &completions.ChatCompletionRequest{
 		Model: "gpt-4o-search-preview",
-		Messages: []*ChatMessage{
+		Messages: []completions.ChatMessage{
 			{Role: RoleUser, Content: "今年春アニメのおすすめは？"},
 		},
-		WebSearchOptions: &WebSearchOptions{
+		WebSearchOptions: &completions.WebSearchOptions{
 			SearchContextSize: "medium",
-			UserLocation: &UserLocation{
+			UserLocation: &completions.UserLocation{
 				Type: "approximate",
-				Approximate: &Approximate{
+				Approximate: &completions.Approximate{
 					Country: "JP",
 				},
 			},
@@ -91,16 +108,14 @@ func TestOpenAIImageAnalyze(t *testing.T) {
 		return
 	}
 
-	req := &ChatCompletionRequest{
+	req := &completions.ChatCompletionRequest{
 		Model: "gpt-4.1",
-		Messages: []*ChatMessage{
+		Messages: []completions.ChatMessage{
 			{
 				Role: RoleUser,
-				Content: []MessageContent{
-					{Type: TypeText, Text: "画像の中に「個人情報が含まれているかどうか」を判定してください。"},
-					{Type: TypeImageURL, ImageURL: &ImageURL{
-						URL: "https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/50012396079/original/j3UQrTiD9AcapYi98QjFjTKXptsLq4TSBA.png?1720516588",
-					}},
+				Content: []completions.MessageContent{
+					completions.TextContent("画像の中に「個人情報が含まれているかどうか」を判定してください。"),
+					completions.ImageURLContent("https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/50012396079/original/j3UQrTiD9AcapYi98QjFjTKXptsLq4TSBA.png?1720516588", ""),
 				},
 			},
 		},
@@ -116,13 +131,48 @@ func TestOpenAIImageAnalyze(t *testing.T) {
 	fmt.Println(res.Usage.String())
 }
 
+func TestOpenAIFiles(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	files := []string{"earth.pdf", "earth.docx"}
+
+	for i, file := range files {
+		data := testReadFile(t, file)
+
+		req := &completions.ChatCompletionRequest{
+			Model: "gpt-5.2",
+			Messages: []completions.ChatMessage{
+				{
+					Role: RoleUser,
+					Content: []completions.MessageContent{
+						completions.TextContent("ファイルの中に「個人情報が含まれているかどうか」を判定してください。"),
+						completions.FileDataContent(file, data),
+					},
+				},
+			},
+		}
+
+		res, err := oai.CreateChatCompletion(context.TODO(), req)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateChatCompletion(): %v", i, err)
+			continue
+		}
+
+		fmt.Println("-------------------------------------------")
+		fmt.Println(res)
+	}
+}
+
 func TestOpenAICreateTextEmbeddingsAda002(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
 	}
 
-	req := &TextEmbeddingsRequest{
+	req := &embeddings.TextEmbeddingsRequest{
 		Model: "text-embedding-ada-002",
 		Input: []string{"あなたはだれですか？"},
 	}
@@ -141,7 +191,7 @@ func TestOpenAICreateTextEmbeddings3Small(t *testing.T) {
 		return
 	}
 
-	req := &TextEmbeddingsRequest{
+	req := &embeddings.TextEmbeddingsRequest{
 		Model: "text-embedding-3-small",
 		Input: []string{"あなたはだれですか？"},
 	}
@@ -160,7 +210,7 @@ func TestOpenAICreateTextEmbeddings3LargeWithDimensions(t *testing.T) {
 		return
 	}
 
-	req := &TextEmbeddingsRequest{
+	req := &embeddings.TextEmbeddingsRequest{
 		Model:      "text-embedding-3-large",
 		Input:      []string{"あなたはだれですか？"},
 		Dimensions: 1536,

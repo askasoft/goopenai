@@ -1,26 +1,26 @@
-package openai
+package completions
 
 import (
 	"fmt"
 	"mime"
 	"path/filepath"
 
+	"github.com/askasoft/pango/asg"
+	"github.com/askasoft/pango/doc/jsonx"
 	"github.com/askasoft/pango/net/dataurl"
 	"github.com/askasoft/pango/str"
 )
 
 const (
-	RoleDeveloper = "developer"
-	RoleSystem    = "system"
-	RoleUser      = "user"
-	RoleAssistant = "assistant"
-	RoleTool      = "tool"
-
 	TypeText       = "text"
 	TypeImageURL   = "image_url"
 	TypeInputAudio = "input_audio"
 	TypeFile       = "file"
 )
+
+func toString(o any) string {
+	return jsonx.Prettify(o)
+}
 
 type ChatMessage struct {
 	// The role of the messages author. One of system, user, assistant, or function.
@@ -98,36 +98,36 @@ type MessageContent struct {
 	File       *InputFile  `json:"file,omitempty"`
 }
 
-func NewTextMessage(text string) *MessageContent {
-	return &MessageContent{Type: TypeText, Text: text}
+func TextContent(text string) MessageContent {
+	return MessageContent{Type: TypeText, Text: text}
 }
 
-func NewImageDataMessage(name string, data []byte, detail string) *MessageContent {
+func ImageDataContent(name string, data []byte, detail ...string) MessageContent {
 	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(name)), "image/jpeg")
 	dataURL := dataurl.Encode(mediaType, data)
-	return &MessageContent{Type: TypeImageURL, ImageURL: &ImageURL{URL: dataURL, Detail: detail}}
+	return MessageContent{Type: TypeImageURL, ImageURL: &ImageURL{URL: dataURL, Detail: asg.First(detail)}}
 }
 
-func NewImageURLMessage(url, detail string) *MessageContent {
-	return &MessageContent{Type: TypeImageURL, ImageURL: &ImageURL{URL: url, Detail: detail}}
+func ImageURLContent(url string, detail ...string) MessageContent {
+	return MessageContent{Type: TypeImageURL, ImageURL: &ImageURL{URL: url, Detail: asg.First(detail)}}
 }
 
-func NewAudioDataMessage(name string, data []byte) *MessageContent {
+func FileDataContent(filename string, data []byte) MessageContent {
+	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(filename)), "text/plain")
+	dataURL := dataurl.Encode(mediaType, data)
+	return MessageContent{Type: TypeFile, File: &InputFile{Filename: filename, FileData: dataURL}}
+}
+
+func FileIDContent(fileid, filename string) MessageContent {
+	return MessageContent{Type: TypeFile, File: &InputFile{FileID: fileid, Filename: filename}}
+}
+
+func AudioDataContent(name string, data []byte) MessageContent {
 	ext := str.IfEmpty(filepath.Ext(name), ".mp3")
 	format := str.TrimPrefix(ext, ".")
 	mediaType := str.IfEmpty(mime.TypeByExtension(ext), "audio/mp3")
 	dataURL := dataurl.Encode(mediaType, data)
-	return &MessageContent{Type: TypeInputAudio, InputAudio: &InputAudio{Format: format, Data: dataURL}}
-}
-
-func NewInputAudioMessage(format, dataURL string) *MessageContent {
-	return &MessageContent{Type: TypeInputAudio, InputAudio: &InputAudio{Format: format, Data: dataURL}}
-}
-
-func NewFileDataMessage(filename string, data []byte) *MessageContent {
-	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(filename)), "application/octet-stream")
-	dataURL := dataurl.Encode(mediaType, data)
-	return &MessageContent{Type: TypeFile, File: &InputFile{Filename: filename, FileData: dataURL}}
+	return MessageContent{Type: TypeInputAudio, InputAudio: &InputAudio{Format: format, Data: dataURL}}
 }
 
 type ChatFunction struct {
@@ -213,7 +213,7 @@ type WebSearchOptions struct {
 
 type ChatCompletionRequest struct {
 	// A list of messages comprising the conversation so far.
-	Messages []*ChatMessage `json:"messages,omitempty"`
+	Messages []ChatMessage `json:"messages,omitempty"`
 
 	// ID of the model to use. See the model endpoint compatibility table for details on which models work with the Chat API.
 	Model string `json:"model,omitempty"`
@@ -237,7 +237,7 @@ type ChatCompletionRequest struct {
 	MaxCompletionTokens int `json:"max_completion_tokens,omitempty"`
 
 	// Metadata Set of 16 key-value pairs that can be attached to an object. This can be useful for storing additional information about the object in a structured format, and querying for objects via API or the dashboard. Keys are strings with a maximum length of 64 characters. Values are strings with a maximum length of 512 characters.
-	Metadata any `json:"metadata,omitempty"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 
 	// Output types that you would like the model to generate for this request. Most models are capable of generating text, which is the default: ["text"]
 	// The gpt-4o-audio-preview model can also be used to generate audio. To request that this model generate both text and audio responses, you can use: ["text", "audio"]
@@ -336,12 +336,11 @@ type ChatCompletionRequest struct {
 	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty"`
 }
 
-func (cc *ChatCompletionRequest) AddMessage(cm *ChatMessage) {
+func (cc *ChatCompletionRequest) AddMessage(cm ChatMessage) {
 	cc.Messages = append(cc.Messages, cm)
 }
 
-func (cc *ChatCompletionRequest) MessageRuneCount() int {
-	cnt := 0
+func (cc *ChatCompletionRequest) MessageRuneCount() (cnt int) {
 	for _, cm := range cc.Messages {
 		switch v := cm.Content.(type) {
 		case string:
@@ -350,9 +349,13 @@ func (cc *ChatCompletionRequest) MessageRuneCount() int {
 			for _, c := range v {
 				cnt += str.RuneCount(c.Text)
 			}
+		case []MessageContent:
+			for _, c := range v {
+				cnt += str.RuneCount(c.Text)
+			}
 		}
 	}
-	return cnt
+	return
 }
 
 func (cc *ChatCompletionRequest) String() string {
@@ -464,7 +467,7 @@ func (ptd *PromptTokensDetails) String() string {
 	return fmt.Sprintf("A: %d, C: %d", ptd.AudioTokens, ptd.CachedTokens)
 }
 
-type ChatUsage struct {
+type Usage struct {
 	CompletionTokens        int                     `json:"completion_tokens"`
 	PromptTokens            int                     `json:"prompt_tokens"`
 	TotalTokens             int                     `json:"total_tokens"`
@@ -472,19 +475,19 @@ type ChatUsage struct {
 	PromptTokensDetails     PromptTokensDetails     `json:"prompt_tokens_details"`
 }
 
-func (cu *ChatUsage) Add(u *ChatUsage) {
-	cu.PromptTokens += u.PromptTokens
-	cu.CompletionTokens += u.CompletionTokens
-	cu.TotalTokens += u.TotalTokens
-	cu.CompletionTokensDetails.Add(&u.CompletionTokensDetails)
-	cu.PromptTokensDetails.Add(&u.PromptTokensDetails)
+func (u *Usage) Add(a *Usage) {
+	u.PromptTokens += a.PromptTokens
+	u.CompletionTokens += a.CompletionTokens
+	u.TotalTokens += a.TotalTokens
+	u.CompletionTokensDetails.Add(&a.CompletionTokensDetails)
+	u.PromptTokensDetails.Add(&a.PromptTokensDetails)
 }
 
-func (cu *ChatUsage) String() string {
+func (u *Usage) String() string {
 	return fmt.Sprintf("C: %d (%s), P: %d (%s), T: %d",
-		cu.CompletionTokens, cu.CompletionTokensDetails.String(),
-		cu.PromptTokens, cu.PromptTokensDetails.String(),
-		cu.TotalTokens)
+		u.CompletionTokens, u.CompletionTokensDetails.String(),
+		u.PromptTokens, u.PromptTokensDetails.String(),
+		u.TotalTokens)
 }
 
 type ChatCompletionResponse struct {
@@ -494,7 +497,7 @@ type ChatCompletionResponse struct {
 	Model       string        `json:"model,omitempty"`
 	ServiceTier string        `json:"service_tier,omitempty"`
 	Object      string        `json:"object,omitempty"`
-	Usage       ChatUsage     `json:"usage,omitempty"`
+	Usage       Usage         `json:"usage,omitempty"`
 }
 
 func (cc *ChatCompletionResponse) String() string {

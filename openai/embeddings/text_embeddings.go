@@ -1,6 +1,11 @@
-package openai
+package embeddings
 
-import "github.com/askasoft/pango/str"
+import (
+	"fmt"
+
+	"github.com/askasoft/pango/doc/jsonx"
+	"github.com/askasoft/pango/str"
+)
 
 type TextEmbeddingsRequest struct {
 	// Input Input text to embed (required)
@@ -11,6 +16,9 @@ type TextEmbeddingsRequest struct {
 
 	// Dimensions (optional) The number of dimensions the resulting output embeddings should have. Only supported in text-embedding-3 and later models.
 	Dimensions int `json:"dimensions,omitempty"`
+
+	// EncodingFormat (optional) "float" or "base64"
+	EncodingFormat string `json:"encoding_format,omitempty"`
 
 	// User (optional) A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
 	User string `json:"user,omitempty"`
@@ -39,16 +47,25 @@ type EmbeddingData struct {
 	Embedding []float64 `json:"embedding"`
 }
 
-type EmbeddingUsage struct {
+type Usage struct {
 	PromptTokens int `json:"prompt_tokens"`
 	TotalTokens  int `json:"total_tokens"`
 }
 
+func (u *Usage) Add(a *Usage) {
+	u.PromptTokens += a.PromptTokens
+	u.TotalTokens += a.TotalTokens
+}
+
+func (u *Usage) String() string {
+	return fmt.Sprintf("P: %d, T: %d", u.PromptTokens, u.TotalTokens)
+}
+
 type TextEmbeddingsResponse struct {
-	Data   []*EmbeddingData `json:"data"`
-	Model  string           `json:"model"`
-	Object string           `json:"object"`
-	Usage  ChatUsage        `json:"usage"`
+	Data   []EmbeddingData `json:"data"`
+	Model  string          `json:"model"`
+	Object string          `json:"object"`
+	Usage  Usage           `json:"usage"`
 }
 
 func (te *TextEmbeddingsResponse) String() string {
@@ -60,4 +77,8 @@ func (te *TextEmbeddingsResponse) Embedding() []float64 {
 		return te.Data[0].Embedding
 	}
 	return nil
+}
+
+func toString(o any) string {
+	return jsonx.Prettify(o)
 }

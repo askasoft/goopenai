@@ -3,22 +3,32 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/askasoft/goopenai/openai/chat/completions"
+	"github.com/askasoft/goopenai/openai/embeddings"
 	"github.com/askasoft/pango/iox"
 	"github.com/askasoft/pango/log"
 	"github.com/askasoft/pango/log/httplog"
 	"github.com/askasoft/pango/ret"
 )
 
-// alias for Client
-type OpenAI = Client
+const (
+	OpenAIBaseURL = "https://api.openai.com/v1"
+
+	RoleDeveloper = "developer"
+	RoleSystem    = "system"
+	RoleUser      = "user"
+	RoleAssistant = "assistant"
+	RoleTool      = "tool"
+)
 
 type Client struct {
-	Domain string
-	Apikey string
+	BaseURL string
+	APIKey  string
 
 	Transport http.RoundTripper
 	Timeout   time.Duration
@@ -27,10 +37,24 @@ type Client struct {
 	MaxRetries  int
 	RetryAfter  time.Duration
 	ShouldRetry func(error) bool // default retry on not canceled error or (status = 429 || (status >= 500 && status <= 599))
+
+	Authenticate func(req *http.Request, apikey string)  // custom authenticate function
+	ServicePath  func(format string, args ...any) string // custom service path function
 }
 
-func (c *Client) endpoint(format string, args ...any) string {
-	return "https://" + c.Domain + "/v1" + fmt.Sprintf(format, args...)
+func authenticate(req *http.Request, apikey string) {
+	req.Header.Set("Authorization", "Bearer "+apikey)
+}
+
+func shouldRetry(err error) bool {
+	if re, ok := AsResultError(err); ok {
+		return re.StatusCode == http.StatusTooManyRequests || (re.StatusCode >= 500 && re.StatusCode <= 599)
+	}
+	return !errors.Is(err, context.Canceled)
+}
+
+func servicePath(format string, args ...any) string {
+	return fmt.Sprintf(format, args...)
 }
 
 func (c *Client) shouldRetry(err error) bool {
@@ -39,6 +63,27 @@ func (c *Client) shouldRetry(err error) bool {
 		sr = shouldRetry
 	}
 	return sr(err)
+}
+
+func (c *Client) authenticate(req *http.Request) {
+	if req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", contentTypeJSON)
+	}
+
+	a := c.Authenticate
+	if a == nil {
+		a = authenticate
+	}
+
+	a(req, c.APIKey)
+}
+
+func (c *Client) endpoint(format string, args ...any) string {
+	f := c.ServicePath
+	if f == nil {
+		f = servicePath
+	}
+	return c.BaseURL + f(format, args...)
 }
 
 func (c *Client) call(req *http.Request) (res *http.Response, err error) {
@@ -56,16 +101,8 @@ func (c *Client) call(req *http.Request) (res *http.Response, err error) {
 	return
 }
 
-func (c *Client) RetryForError(ctx context.Context, api func() error) (err error) {
+func (c *Client) retryForError(ctx context.Context, api func() error) (err error) {
 	return ret.RetryForError(ctx, api, c.MaxRetries, c.Logger)
-}
-
-func (c *Client) authenticate(req *http.Request) {
-	if req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", contentTypeJSON)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.Apikey)
 }
 
 func (c *Client) doCall(req *http.Request, result any) error {
@@ -95,7 +132,7 @@ func (c *Client) doCall(req *http.Request, result any) error {
 }
 
 func (c *Client) DoPost(ctx context.Context, url string, source, result any) error {
-	return c.RetryForError(ctx, func() error {
+	return c.retryForError(ctx, func() error {
 		return c.doPost(ctx, url, source, result)
 	})
 }
@@ -118,19 +155,19 @@ func (c *Client) doPost(ctx context.Context, url string, source, result any) err
 }
 
 // https://platform.openai.com/docs/api-reference/chat/create
-func (c *Client) CreateChatCompletion(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, error) {
+func (c *Client) CreateChatCompletion(ctx context.Context, req *completions.ChatCompletionRequest) (*completions.ChatCompletionResponse, error) {
 	url := c.endpoint("/chat/completions")
 
-	res := &ChatCompletionResponse{}
+	res := &completions.ChatCompletionResponse{}
 	err := c.DoPost(ctx, url, req, res)
 	return res, err
 }
 
 // https://platform.openai.com/docs/api-reference/embeddings/create
-func (c *Client) CreateTextEmbeddings(ctx context.Context, req *TextEmbeddingsRequest) (*TextEmbeddingsResponse, error) {
+func (c *Client) CreateTextEmbeddings(ctx context.Context, req *embeddings.TextEmbeddingsRequest) (*embeddings.TextEmbeddingsResponse, error) {
 	url := c.endpoint("/embeddings")
 
-	res := &TextEmbeddingsResponse{}
+	res := &embeddings.TextEmbeddingsResponse{}
 	err := c.DoPost(ctx, url, req, res)
 	return res, err
 }
