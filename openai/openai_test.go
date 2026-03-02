@@ -232,11 +232,11 @@ func TestOpenAIResponsesFiles(t *testing.T) {
 	}
 
 	files := []string{
+		"earth.txt",
 		"earth.xlsx",
 		"earth.pdf",
 		"earth.docx",
 		"earth.pptx",
-		"earth.txt",
 		"earth.csv",
 		// "earth.tsv", // unsupport
 	}

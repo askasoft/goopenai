@@ -8,6 +8,7 @@ import (
 	"github.com/askasoft/pango/asg"
 	"github.com/askasoft/pango/doc/jsonx"
 	"github.com/askasoft/pango/net/dataurl"
+	"github.com/askasoft/pango/net/mimex"
 	"github.com/askasoft/pango/str"
 )
 
@@ -103,7 +104,7 @@ func TextContent(text string) MessageContent {
 }
 
 func ImageDataContent(name string, data []byte, detail ...string) MessageContent {
-	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(name)), "image/jpeg")
+	mediaType := mimex.MediaTypeByFilename(name, "image/jpeg")
 	dataURL := dataurl.Encode(mediaType, data)
 	return MessageContent{Type: TypeImageURL, ImageURL: &ImageURL{URL: dataURL, Detail: asg.First(detail)}}
 }
@@ -113,7 +114,7 @@ func ImageURLContent(url string, detail ...string) MessageContent {
 }
 
 func FileDataContent(filename string, data []byte) MessageContent {
-	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(filename)), "text/plain")
+	mediaType := mimex.MediaTypeByFilename(filename, "text/plain")
 	dataURL := dataurl.Encode(mediaType, data)
 	return MessageContent{Type: TypeFile, File: &InputFile{Filename: filename, FileData: dataURL}}
 }

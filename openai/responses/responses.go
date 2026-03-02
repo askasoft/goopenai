@@ -1,15 +1,13 @@
 package responses
 
 import (
-	"mime"
-	"path/filepath"
 	"strings"
 
 	"github.com/askasoft/goopenai/openai/shared"
 	"github.com/askasoft/pango/asg"
 	"github.com/askasoft/pango/doc/jsonx"
 	"github.com/askasoft/pango/net/dataurl"
-	"github.com/askasoft/pango/str"
+	"github.com/askasoft/pango/net/mimex"
 )
 
 // The error code for the response.
@@ -267,7 +265,7 @@ func TextContent(text string) ResponseMessageContent {
 }
 
 func ImageDataContent(name string, data []byte, detail ...string) ResponseMessageContent {
-	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(name)), "image/jpeg")
+	mediaType := mimex.MediaTypeByFilename(name, "image/jpeg")
 	dataURL := dataurl.Encode(mediaType, data)
 	return ResponseMessageContent{Type: ResponseInputTypeImage, ImageURL: dataURL, Detail: asg.First(detail)}
 }
@@ -278,7 +276,7 @@ func ImageURLContent(url string, detail ...string) ResponseMessageContent {
 
 // https://developers.openai.com/api/docs/assistants/tools/file-search#supported-files
 func FileDataContent(filename string, data []byte) ResponseMessageContent {
-	mediaType := str.IfEmpty(mime.TypeByExtension(filepath.Ext(filename)), "text/plain")
+	mediaType := mimex.MediaTypeByFilename(filename, "text/plain")
 	dataURL := dataurl.Encode(mediaType, data)
 	return ResponseMessageContent{Type: ResponseInputTypeFile, Filename: filename, FileData: dataURL}
 }
