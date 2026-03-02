@@ -281,8 +281,8 @@ func FileDataContent(filename string, data []byte) ResponseMessageContent {
 	return ResponseMessageContent{Type: ResponseInputTypeFile, Filename: filename, FileData: dataURL}
 }
 
-func FileIDContent(fileid, filename string) ResponseMessageContent {
-	return ResponseMessageContent{Type: ResponseInputTypeFile, FileID: fileid, Filename: filename}
+func FileIDContent(fileid string) ResponseMessageContent {
+	return ResponseMessageContent{Type: ResponseInputTypeFile, FileID: fileid}
 }
 
 func FileURLContent(fileurl, filename string) ResponseMessageContent {

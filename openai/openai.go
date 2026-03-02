@@ -10,6 +10,7 @@ import (
 
 	"github.com/askasoft/goopenai/openai/chat/completions"
 	"github.com/askasoft/goopenai/openai/embeddings"
+	"github.com/askasoft/goopenai/openai/files"
 	"github.com/askasoft/goopenai/openai/responses"
 	"github.com/askasoft/pango/iox"
 	"github.com/askasoft/pango/log"
@@ -67,10 +68,6 @@ func (c *Client) shouldRetry(err error) bool {
 }
 
 func (c *Client) authenticate(req *http.Request) {
-	if req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", contentTypeJSON)
-	}
-
 	a := c.Authenticate
 	if a == nil {
 		a = authenticate
@@ -139,7 +136,7 @@ func (c *Client) DoPost(ctx context.Context, url string, source, result any) err
 }
 
 func (c *Client) doPost(ctx context.Context, url string, source, result any) error {
-	buf, ct, err := buildJsonRequest(source)
+	buf, ct, err := buildRequest(source)
 	if err != nil {
 		return err
 	}
@@ -178,6 +175,15 @@ func (c *Client) CreateResponse(ctx context.Context, req *responses.CreateReques
 	url := c.endpoint("/responses")
 
 	res := &responses.CreateResponse{}
+	err := c.DoPost(ctx, url, req, res)
+	return res, err
+}
+
+// https://developers.openai.com/api/reference/resources/files/methods/create
+func (c *Client) CreateFile(ctx context.Context, req *files.CreateRequest) (*files.FileObject, error) {
+	url := c.endpoint("/files")
+
+	res := &files.FileObject{}
 	err := c.DoPost(ctx, url, req, res)
 	return res, err
 }

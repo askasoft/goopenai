@@ -54,7 +54,7 @@ func TestAzureOpenAICreateChatCompletion(t *testing.T) {
 		},
 	}
 
-	res, err := aoai.CreateChatCompletion(context.TODO(), req)
+	res, err := aoai.CreateChatCompletion(context.Background(), req)
 	if err != nil {
 		t.Fatalf("AzureOpenAI.CreateChatCompletion(): %v", err)
 	}
@@ -73,7 +73,7 @@ func TestAzureOpenAICreateTextEmbeddingsAda002(t *testing.T) {
 		Input: []string{"あなたはだれですか？"},
 	}
 
-	res, err := aoai.CreateTextEmbeddings(context.TODO(), req)
+	res, err := aoai.CreateTextEmbeddings(context.Background(), req)
 	if err != nil {
 		t.Fatalf("AzureOpenAI.CreateTextEmbeddings(): %v", err)
 	} else {
@@ -92,7 +92,7 @@ func TestAzureOpenAICreateTextEmbeddings3Small(t *testing.T) {
 		Input: []string{"あなたはだれですか？"},
 	}
 
-	res, err := aoai.CreateTextEmbeddings(context.TODO(), req)
+	res, err := aoai.CreateTextEmbeddings(context.Background(), req)
 	if err != nil {
 		t.Fatalf("AzureOpenAI.CreateTextEmbeddings(): %v", err)
 	} else {
@@ -112,7 +112,7 @@ func TestAzureCreateTextEmbeddings3LargeWithDimensions(t *testing.T) {
 		Dimensions: 1536,
 	}
 
-	res, err := aoai.CreateTextEmbeddings(context.TODO(), req)
+	res, err := aoai.CreateTextEmbeddings(context.Background(), req)
 	if err != nil {
 		t.Fatalf("AzureOpenAI.CreateTextEmbeddings(): %v", err)
 	} else {

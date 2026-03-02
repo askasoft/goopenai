@@ -10,6 +10,7 @@ import (
 
 	"github.com/askasoft/goopenai/openai/chat/completions"
 	"github.com/askasoft/goopenai/openai/embeddings"
+	"github.com/askasoft/goopenai/openai/files"
 	"github.com/askasoft/goopenai/openai/responses"
 	"github.com/askasoft/pango/fsu"
 	"github.com/askasoft/pango/log"
@@ -59,7 +60,7 @@ func TestOpenAICreateTextEmbeddingsAda002(t *testing.T) {
 		Input: []string{"あなたはだれですか？"},
 	}
 
-	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
+	res, err := oai.CreateTextEmbeddings(context.Background(), req)
 	if err != nil {
 		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
 	} else {
@@ -78,7 +79,7 @@ func TestOpenAICreateTextEmbeddings3Small(t *testing.T) {
 		Input: []string{"あなたはだれですか？"},
 	}
 
-	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
+	res, err := oai.CreateTextEmbeddings(context.Background(), req)
 	if err != nil {
 		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
 	} else {
@@ -98,7 +99,7 @@ func TestOpenAICreateTextEmbeddings3LargeWithDimensions(t *testing.T) {
 		Dimensions: 1536,
 	}
 
-	res, err := oai.CreateTextEmbeddings(context.TODO(), req)
+	res, err := oai.CreateTextEmbeddings(context.Background(), req)
 	if err != nil {
 		t.Fatalf("OpenAI.CreateTextEmbeddings(): %v", err)
 	} else {
@@ -119,7 +120,7 @@ func TestOpenAICreateChatCompletion(t *testing.T) {
 		},
 	}
 
-	res, err := oai.CreateChatCompletion(context.TODO(), req)
+	res, err := oai.CreateChatCompletion(context.Background(), req)
 	if err != nil {
 		t.Fatalf("OpenAI.CreateChatCompletion(): %v", err)
 	}
@@ -151,7 +152,7 @@ func TestOpenAIWebSearchTool(t *testing.T) {
 		},
 	}
 
-	res, err := oai.CreateChatCompletion(context.TODO(), req)
+	res, err := oai.CreateChatCompletion(context.Background(), req)
 	if err != nil {
 		t.Fatalf("OpenAI.CreateChatCompletion(): %v", err)
 	}
@@ -180,7 +181,7 @@ func TestOpenAIImageAnalyze(t *testing.T) {
 		},
 	}
 
-	res, err := oai.CreateChatCompletion(context.TODO(), req)
+	res, err := oai.CreateChatCompletion(context.Background(), req)
 	if err != nil {
 		t.Fatalf("OpenAI.CreateChatCompletion(): %v", err)
 	}
@@ -190,16 +191,16 @@ func TestOpenAIImageAnalyze(t *testing.T) {
 	fmt.Println(res.Usage.String())
 }
 
-func TestOpenAICompeletionsFiles(t *testing.T) {
+func TestOpenAICompeletionsFileData(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
 	}
 
-	files := []string{"earth.pdf", "earth.docx"}
+	testfiles := []string{"earth.pdf"} // pdf only
 
-	for i, file := range files {
-		data := testReadFile(t, file)
+	for i, testfile := range testfiles {
+		filedata := testReadFile(t, testfile)
 
 		req := &completions.ChatCompletionRequest{
 			Model: "gpt-5.2",
@@ -208,13 +209,13 @@ func TestOpenAICompeletionsFiles(t *testing.T) {
 					Role: RoleUser,
 					Content: []completions.MessageContent{
 						completions.TextContent("ファイルの中に「個人情報が含まれているかどうか」を判定してください。"),
-						completions.FileDataContent(file, data),
+						completions.FileDataContent(testfile, filedata),
 					},
 				},
 			},
 		}
 
-		res, err := oai.CreateChatCompletion(context.TODO(), req)
+		res, err := oai.CreateChatCompletion(context.Background(), req)
 		if err != nil {
 			t.Errorf("#%d OpenAI.CreateChatCompletion(): %v", i, err)
 			continue
@@ -225,24 +226,24 @@ func TestOpenAICompeletionsFiles(t *testing.T) {
 	}
 }
 
-func TestOpenAIResponsesFiles(t *testing.T) {
+func TestOpenAIResponsesFileData(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
 	}
 
-	files := []string{
-		"earth.txt",
-		"earth.xlsx",
+	testfiles := []string{
 		"earth.pdf",
 		"earth.docx",
-		"earth.pptx",
-		"earth.csv",
+		// "earth.pptx",
+		// "earth.xlsx",
+		// "earth.txt",
+		// "earth.csv",
 		// "earth.tsv", // unsupport
 	}
 
-	for i, file := range files {
-		data := testReadFile(t, file)
+	for i, testfile := range testfiles {
+		filedata := testReadFile(t, testfile)
 
 		req := &responses.CreateRequest{
 			Model: "gpt-5.2",
@@ -251,13 +252,13 @@ func TestOpenAIResponsesFiles(t *testing.T) {
 					Role: RoleUser,
 					Content: []responses.ResponseMessageContent{
 						responses.TextContent("ファイルの中に「個人情報が含まれているかどうか」を判定してください。"),
-						responses.FileDataContent(file, data),
+						responses.FileDataContent(testfile, filedata),
 					},
 				},
 			},
 		}
 
-		res, err := oai.CreateResponse(context.TODO(), req)
+		res, err := oai.CreateResponse(context.Background(), req)
 		if err != nil {
 			t.Errorf("#%d OpenAI.CreateResponse(): %v", i, err)
 			continue
@@ -267,5 +268,143 @@ func TestOpenAIResponsesFiles(t *testing.T) {
 		fmt.Println(res)
 		fmt.Println("-------------------------------------------")
 		fmt.Println(res.OutputText())
+	}
+}
+
+func TestOpenAICompeletionsFileID(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	testfiles := []string{"earth.pdf", "earth.docx"}
+
+	for i, testfile := range testfiles {
+		filedata := testReadFile(t, testfile)
+
+		freq := &files.CreateRequest{
+			FileName:     testfile,
+			FileData:     filedata,
+			Purpose:      files.FilePurposeAssistants,
+			ExpiresAfter: 3600,
+		}
+
+		fres, err := oai.CreateFile(context.Background(), freq)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateFile(): %v", i, err)
+			continue
+		}
+
+		creq := &completions.ChatCompletionRequest{
+			Model: "gpt-5.2",
+			Messages: []completions.ChatMessage{
+				{
+					Role: RoleUser,
+					Content: []completions.MessageContent{
+						completions.TextContent("ファイルの中に「個人情報が含まれているかどうか」を判定してください。"),
+						completions.FileIDContent(fres.ID),
+					},
+				},
+			},
+		}
+
+		cres, err := oai.CreateChatCompletion(context.Background(), creq)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateChatCompletion(): %v", i, err)
+			continue
+		}
+
+		fmt.Println("-------------------------------------------")
+		fmt.Println(cres)
+	}
+}
+
+func TestOpenAIResponsesFileID(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	testfiles := []string{
+		"earth.pdf",
+		"earth.docx",
+		// "earth.pptx",
+		// "earth.xlsx",
+		// "earth.txt",
+		// "earth.csv",
+		// "earth.tsv", // unsupport
+	}
+
+	for i, testfile := range testfiles {
+		filedata := testReadFile(t, testfile)
+
+		freq := &files.CreateRequest{
+			FileName:     testfile,
+			FileData:     filedata,
+			Purpose:      files.FilePurposeAssistants,
+			ExpiresAfter: 3600,
+		}
+
+		fres, err := oai.CreateFile(context.Background(), freq)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateFile(): %v", i, err)
+			continue
+		}
+
+		creq := &responses.CreateRequest{
+			Model: "gpt-5.2",
+			Input: []responses.ResponseMessage{
+				{
+					Role: RoleUser,
+					Content: []responses.ResponseMessageContent{
+						responses.TextContent("ファイルの中に「個人情報が含まれているかどうか」を判定してください。"),
+						responses.FileIDContent(fres.ID),
+					},
+				},
+			},
+		}
+
+		cres, err := oai.CreateResponse(context.Background(), creq)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateResponse(): %v", i, err)
+			continue
+		}
+
+		fmt.Println("-------------------------------------------")
+		fmt.Println(cres)
+		fmt.Println("-------------------------------------------")
+		fmt.Println(cres.OutputText())
+	}
+}
+
+func TestOpenAICreateFile(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	cs := []string{
+		"earth.docx",
+		// "earth.tsv", // unsupport
+	}
+
+	for i, file := range cs {
+		data := testReadFile(t, file)
+
+		req := &files.CreateRequest{
+			FileName:     file,
+			FileData:     data,
+			Purpose:      files.FilePurposeAssistants,
+			ExpiresAfter: 3600,
+		}
+
+		res, err := oai.CreateFile(context.Background(), req)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateFile(): %v", i, err)
+			continue
+		}
+
+		fmt.Println("-------------------------------------------")
+		fmt.Println(res)
 	}
 }

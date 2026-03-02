@@ -119,8 +119,8 @@ func FileDataContent(filename string, data []byte) MessageContent {
 	return MessageContent{Type: TypeFile, File: &InputFile{Filename: filename, FileData: dataURL}}
 }
 
-func FileIDContent(fileid, filename string) MessageContent {
-	return MessageContent{Type: TypeFile, File: &InputFile{FileID: fileid, Filename: filename}}
+func FileIDContent(fileid string) MessageContent {
+	return MessageContent{Type: TypeFile, File: &InputFile{FileID: fileid}}
 }
 
 func AudioDataContent(name string, data []byte) MessageContent {
@@ -129,18 +129,6 @@ func AudioDataContent(name string, data []byte) MessageContent {
 	mediaType := str.IfEmpty(mime.TypeByExtension(ext), "audio/mp3")
 	dataURL := dataurl.Encode(mediaType, data)
 	return MessageContent{Type: TypeInputAudio, InputAudio: &InputAudio{Format: format, Data: dataURL}}
-}
-
-type ChatFunction struct {
-	// The name of the function to be called. Must be a-z, A-Z, 0-9, or contain underscores and dashes, with a maximum length of 64.
-	Name string `json:"name,omitempty"`
-
-	// A description of what the function does, used by the model to choose when and how to call the function.
-	Description string `json:"description,omitempty"`
-
-	// The parameters the functions accepts, described as a JSON Schema object. See the guide for examples, and the JSON Schema reference for documentation about the format.
-	// To describe a function that accepts no parameters, provide the value {"type": "object", "properties": {}}.
-	Parameters map[string]any `json:"parameters,omitempty"`
 }
 
 type AudioOutput struct {
@@ -337,12 +325,12 @@ type ChatCompletionRequest struct {
 	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty"`
 }
 
-func (cc *ChatCompletionRequest) AddMessage(cm ChatMessage) {
-	cc.Messages = append(cc.Messages, cm)
+func (cr *ChatCompletionRequest) AddMessage(cm ChatMessage) {
+	cr.Messages = append(cr.Messages, cm)
 }
 
-func (cc *ChatCompletionRequest) MessageRuneCount() (cnt int) {
-	for _, cm := range cc.Messages {
+func (cr *ChatCompletionRequest) MessageRuneCount() (cnt int) {
+	for _, cm := range cr.Messages {
 		switch v := cm.Content.(type) {
 		case string:
 			cnt += str.RuneCount(v)
@@ -359,8 +347,8 @@ func (cc *ChatCompletionRequest) MessageRuneCount() (cnt int) {
 	return
 }
 
-func (cc *ChatCompletionRequest) String() string {
-	return toString(cc)
+func (cr *ChatCompletionRequest) String() string {
+	return toString(cr)
 }
 
 type ChoiceAudio struct {
@@ -419,7 +407,7 @@ type ChoiceMessage struct {
 	ToolCalls []*ToolCall `json:"tool_calls,omitempty"`
 }
 
-type ChatChoice struct {
+type Choice struct {
 	Index        int           `json:"index"`
 	Message      ChoiceMessage `json:"message"`
 	Logprobs     any           `json:"logprobs,omitempty"`
@@ -492,30 +480,30 @@ func (u *Usage) String() string {
 }
 
 type ChatCompletionResponse struct {
-	ID          string        `json:"id,omitempty"`
-	Choices     []*ChatChoice `json:"choices,omitempty"`
-	Created     int64         `json:"created,omitempty"`
-	Model       string        `json:"model,omitempty"`
-	ServiceTier string        `json:"service_tier,omitempty"`
-	Object      string        `json:"object,omitempty"`
-	Usage       Usage         `json:"usage,omitempty"`
+	ID          string    `json:"id,omitempty"`
+	Choices     []*Choice `json:"choices,omitempty"`
+	Created     int64     `json:"created,omitempty"`
+	Model       string    `json:"model,omitempty"`
+	ServiceTier string    `json:"service_tier,omitempty"`
+	Object      string    `json:"object,omitempty"`
+	Usage       Usage     `json:"usage,omitempty"`
 }
 
-func (cc *ChatCompletionResponse) String() string {
-	return toString(cc)
+func (cr *ChatCompletionResponse) String() string {
+	return toString(cr)
 }
 
 // Answer return first choice content
-func (cc *ChatCompletionResponse) Answer() string {
-	if len(cc.Choices) > 0 {
-		return cc.Choices[0].Message.Content
+func (cr *ChatCompletionResponse) Answer() string {
+	if len(cr.Choices) > 0 {
+		return cr.Choices[0].Message.Content
 	}
 	return ""
 }
 
-func (cc *ChatCompletionResponse) ChoiceRuneCount() int {
+func (cr *ChatCompletionResponse) ChoiceRuneCount() int {
 	cnt := 0
-	for _, c := range cc.Choices {
+	for _, c := range cr.Choices {
 		cnt += str.RuneCount(c.Message.Content)
 	}
 	return cnt
