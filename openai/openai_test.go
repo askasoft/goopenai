@@ -10,6 +10,7 @@ import (
 
 	"github.com/askasoft/goopenai/openai/chat/completions"
 	"github.com/askasoft/goopenai/openai/embeddings"
+	"github.com/askasoft/goopenai/openai/files"
 	"github.com/askasoft/goopenai/openai/responses"
 	"github.com/askasoft/pango/fsu"
 	"github.com/askasoft/pango/log"
@@ -267,5 +268,37 @@ func TestOpenAIResponsesFiles(t *testing.T) {
 		fmt.Println(res)
 		fmt.Println("-------------------------------------------")
 		fmt.Println(res.OutputText())
+	}
+}
+
+func TestOpenAICreateFile(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	cs := []string{
+		"earth.docx",
+		// "earth.tsv", // unsupport
+	}
+
+	for i, file := range cs {
+		data := testReadFile(t, file)
+
+		req := &files.CreateRequest{
+			FileName:     file,
+			FileData:     data,
+			Purpose:      files.FilePurposeAssistants,
+			ExpiresAfter: 3600,
+		}
+
+		res, err := oai.CreateFile(context.TODO(), req)
+		if err != nil {
+			t.Errorf("#%d OpenAI.CreateFile(): %v", i, err)
+			continue
+		}
+
+		fmt.Println("-------------------------------------------")
+		fmt.Println(res)
 	}
 }
