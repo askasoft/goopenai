@@ -14,6 +14,7 @@ import (
 	"github.com/askasoft/goopenai/openai/responses"
 	"github.com/askasoft/pango/fsu"
 	"github.com/askasoft/pango/log"
+	"github.com/askasoft/pango/log/httplog"
 )
 
 func testFilename(name string) string {
@@ -38,12 +39,13 @@ func testNewOpenAI(t *testing.T) *Client {
 
 	logs := log.NewLog()
 	logs.SetLevel(log.LevelDebug)
+	logger := logs.GetLogger("OPENAI")
+
 	oai := &Client{
-		BaseURL:    OpenAIBaseURL,
-		APIKey:     apikey,
-		Logger:     logs.GetLogger("OPENAI"),
-		MaxRetries: 1,
-		RetryAfter: time.Second * 3,
+		BaseURL:   OpenAIBaseURL,
+		APIKey:    apikey,
+		Transport: httplog.LoggingRoundTripper(logger),
+		Retryer:   NewRetryer(logger, 1, time.Second*3),
 	}
 
 	return oai

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 type DetailError struct {
@@ -54,7 +53,6 @@ type ResultError struct {
 	StatusCode int          `json:"-"` // http status code
 	Status     string       `json:"-"` // http status
 	Detail     *DetailError `json:"error,omitempty"`
-	RetryAfter time.Duration
 }
 
 func AsResultError(err error) (re *ResultError, ok bool) {
@@ -76,18 +74,8 @@ func newResultError(res *http.Response) *ResultError {
 	}
 }
 
-func (re *ResultError) GetRetryAfter() time.Duration {
-	return re.RetryAfter
-}
-
 func (re *ResultError) Error() string {
-	es := re.Status
-
-	if re.RetryAfter > 0 {
-		es += " (Retry After " + re.RetryAfter.String() + ")"
-	}
-
-	es += " (" + re.Method + " " + re.URL.String() + ")"
+	es := re.Status + " (" + re.Method + " " + re.URL.String() + ")"
 
 	if re.Detail != nil {
 		es += " - " + re.Detail.Error()

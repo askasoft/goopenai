@@ -10,6 +10,7 @@ import (
 	"github.com/askasoft/goopenai/openai/chat/completions"
 	"github.com/askasoft/goopenai/openai/embeddings"
 	"github.com/askasoft/pango/log"
+	"github.com/askasoft/pango/log/httplog"
 )
 
 func testNewAzureOpenAI(t *testing.T, deploy string) *Client {
@@ -29,12 +30,13 @@ func testNewAzureOpenAI(t *testing.T, deploy string) *Client {
 
 	logs := log.NewLog()
 	logs.SetLevel(log.LevelDebug)
+	logger := logs.GetLogger("AZUREOPENAI")
+
 	aoai := &Client{
 		BaseURL:     AzureOpenAIBaseURL(domain, deployment),
 		APIKey:      apikey,
-		Logger:      logs.GetLogger("AZUREOPENAI"),
-		MaxRetries:  1,
-		RetryAfter:  time.Second * 3,
+		Transport:   httplog.LoggingRoundTripper(logger),
+		Retryer:     NewRetryer(logger, 1, time.Second*3),
 		ServicePath: AzureOpenAIServicePath("2024-06-01"),
 	}
 

@@ -12,9 +12,10 @@ import (
 	"github.com/askasoft/goopenai/openai/embeddings"
 	"github.com/askasoft/goopenai/openai/files"
 	"github.com/askasoft/goopenai/openai/responses"
+	"github.com/askasoft/pango/gog"
 	"github.com/askasoft/pango/iox"
 	"github.com/askasoft/pango/log"
-	"github.com/askasoft/pango/log/httplog"
+	"github.com/askasoft/pango/net/httpx"
 	"github.com/askasoft/pango/ret"
 )
 
@@ -34,37 +35,35 @@ type Client struct {
 
 	Transport http.RoundTripper
 	Timeout   time.Duration
-	Logger    log.Logger
-
-	MaxRetries  int
-	RetryAfter  time.Duration
-	ShouldRetry func(error) bool // default retry on not canceled error or (status = 429 || (status >= 500 && status <= 599))
+	Retryer   *ret.Retryer
 
 	Authenticate func(req *http.Request, apikey string)  // custom authenticate function
 	ServicePath  func(format string, args ...any) string // custom service path function
+}
+
+// default retry on not canceled error or (status = 429 || (status >= 500 && status <= 599))
+func NewRetryer(logger log.Logger, maxRetries int, retryAfter time.Duration) *ret.Retryer {
+	return &ret.Retryer{
+		MaxRetries: maxRetries,
+		ShouldRetry: func(err error) time.Duration {
+			return gog.If(shouldRetry(err), retryAfter, 0)
+		},
+	}
+}
+
+func shouldRetry(err error) bool {
+	if re, ok := AsResultError(err); ok {
+		return httpx.IsStatusRetryable(re.StatusCode)
+	}
+	return !errors.Is(err, context.Canceled)
 }
 
 func authenticate(req *http.Request, apikey string) {
 	req.Header.Set("Authorization", "Bearer "+apikey)
 }
 
-func shouldRetry(err error) bool {
-	if re, ok := AsResultError(err); ok {
-		return re.StatusCode == http.StatusTooManyRequests || (re.StatusCode >= 500 && re.StatusCode <= 599)
-	}
-	return !errors.Is(err, context.Canceled)
-}
-
 func servicePath(format string, args ...any) string {
 	return fmt.Sprintf(format, args...)
-}
-
-func (c *Client) shouldRetry(err error) bool {
-	sr := c.ShouldRetry
-	if sr == nil {
-		sr = shouldRetry
-	}
-	return sr(err)
 }
 
 func (c *Client) authenticate(req *http.Request) {
@@ -84,23 +83,20 @@ func (c *Client) endpoint(format string, args ...any) string {
 	return c.BaseURL + f(format, args...)
 }
 
-func (c *Client) call(req *http.Request) (res *http.Response, err error) {
-	client := &http.Client{
+func (c *Client) call(req *http.Request) (*http.Response, error) {
+	hc := http.Client{
 		Transport: c.Transport,
 		Timeout:   c.Timeout,
 	}
 
-	res, err = httplog.TraceClientDo(c.Logger, client, req)
-	if err != nil {
-		if c.shouldRetry(err) {
-			err = ret.NewRetryError(err, c.RetryAfter)
-		}
-	}
-	return
+	return hc.Do(req)
 }
 
 func (c *Client) retryForError(ctx context.Context, api func() error) (err error) {
-	return ret.RetryForError(ctx, api, c.MaxRetries, c.Logger)
+	if r := c.Retryer; r != nil {
+		return r.Do(ctx, api)
+	}
+	return api()
 }
 
 func (c *Client) doCall(req *http.Request, result any) error {
@@ -123,9 +119,6 @@ func (c *Client) doCall(req *http.Request, result any) error {
 	re := newResultError(res)
 	_ = decoder.Decode(re)
 
-	if c.shouldRetry(re) {
-		re.RetryAfter = c.RetryAfter
-	}
 	return re
 }
 
