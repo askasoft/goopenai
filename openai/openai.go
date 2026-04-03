@@ -42,8 +42,9 @@ type Client struct {
 }
 
 // default retry on not canceled error or (status = 429 || (status >= 500 && status <= 599))
-func NewRetryer(logger log.Logger, maxRetries int, retryAfter time.Duration) *ret.Retryer {
+func NewRetryer(retryAfter time.Duration, maxRetries int, logger log.Logger) *ret.Retryer {
 	return &ret.Retryer{
+		Logger:     logger,
 		MaxRetries: maxRetries,
 		ShouldRetry: func(err error) time.Duration {
 			return gog.If(shouldRetry(err), retryAfter, 0)

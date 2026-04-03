@@ -36,7 +36,7 @@ func testNewAzureOpenAI(t *testing.T, deploy string) *Client {
 		BaseURL:     AzureOpenAIBaseURL(domain, deployment),
 		APIKey:      apikey,
 		Transport:   httplog.LoggingRoundTripper(logger),
-		Retryer:     NewRetryer(logger, 1, time.Second*3),
+		Retryer:     NewRetryer(time.Second*3, 1, logger),
 		ServicePath: AzureOpenAIServicePath("2024-06-01"),
 	}
 
