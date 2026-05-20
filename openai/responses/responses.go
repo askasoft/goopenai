@@ -875,19 +875,23 @@ type ResponseUsageInputTokensDetails struct {
 // breakdown of output tokens, and the total tokens used.
 type ResponseUsage struct {
 	// The number of input tokens.
-	InputTokens int64 `json:"input_tokens"`
+	InputTokens int64 `json:"input_tokens,omitempty"`
 
 	// A detailed breakdown of the input tokens.
-	InputTokensDetails ResponseUsageInputTokensDetails `json:"input_tokens_details"`
+	InputTokensDetails ResponseUsageInputTokensDetails `json:"input_tokens_details,omitzero"`
 
 	// The number of output tokens.
-	OutputTokens int64 `json:"output_tokens"`
+	OutputTokens int64 `json:"output_tokens,omitempty"`
 
 	// A detailed breakdown of the output tokens.
-	OutputTokensDetails ResponseUsageOutputTokensDetails `json:"output_tokens_details"`
+	OutputTokensDetails ResponseUsageOutputTokensDetails `json:"output_tokens_details,omitzero"`
 
 	// The total number of tokens used.
-	TotalTokens int64 `json:"total_tokens"`
+	TotalTokens int64 `json:"total_tokens,omitempty"`
+}
+
+func (u *ResponseUsage) String() string {
+	return toString(u)
 }
 
 // A detailed breakdown of the output tokens.

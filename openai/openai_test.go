@@ -132,7 +132,7 @@ func TestOpenAICreateChatCompletion(t *testing.T) {
 	fmt.Println(res.Usage.String())
 }
 
-func TestOpenAIWebSearchTool(t *testing.T) {
+func TestOpenAICompletionWebSearchTool(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
@@ -164,28 +164,28 @@ func TestOpenAIWebSearchTool(t *testing.T) {
 	fmt.Println(res.Usage.String())
 }
 
-func TestOpenAIImageAnalyze(t *testing.T) {
+func TestOpenAIResponsesImageURL(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
 	}
 
-	req := &completions.ChatCompletionRequest{
+	req := &responses.CreateRequest{
 		Model: "gpt-4.1",
-		Messages: []completions.ChatMessage{
+		Input: []responses.ResponseMessage{
 			{
 				Role: RoleUser,
-				Content: []completions.MessageContent{
-					completions.TextContent("画像の中に「個人情報が含まれているかどうか」を判定してください。"),
-					completions.ImageURLContent("https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/50012396079/original/j3UQrTiD9AcapYi98QjFjTKXptsLq4TSBA.png?1720516588", ""),
+				Content: []responses.ResponseMessageContent{
+					responses.TextContent("画像の中に「個人情報が含まれているかどうか」を判定してください。"),
+					responses.ImageURLContent("https://s3.amazonaws.com/cdn.freshdesk.com/data/helpdesk/attachments/production/50012396079/original/j3UQrTiD9AcapYi98QjFjTKXptsLq4TSBA.png?1720516588", ""),
 				},
 			},
 		},
 	}
 
-	res, err := oai.CreateChatCompletion(context.Background(), req)
+	res, err := oai.CreateResponse(context.Background(), req)
 	if err != nil {
-		t.Fatalf("OpenAI.CreateChatCompletion(): %v", err)
+		t.Fatalf("OpenAI.CreateResponse(): %v", err)
 	}
 
 	fmt.Println("-------------------------------------------")
@@ -193,7 +193,7 @@ func TestOpenAIImageAnalyze(t *testing.T) {
 	fmt.Println(res.Usage.String())
 }
 
-func TestOpenAICompeletionsFileData(t *testing.T) {
+func TestOpenAICompletionsFileData(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
@@ -273,7 +273,7 @@ func TestOpenAIResponsesFileData(t *testing.T) {
 	}
 }
 
-func TestOpenAICompeletionsFileID(t *testing.T) {
+func TestOpenAICompletionsFileID(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {
 		return
