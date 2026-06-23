@@ -11,6 +11,7 @@ import (
 	"github.com/askasoft/goopenai/openai/chat/completions"
 	"github.com/askasoft/goopenai/openai/embeddings"
 	"github.com/askasoft/goopenai/openai/files"
+	"github.com/askasoft/goopenai/openai/models"
 	"github.com/askasoft/goopenai/openai/responses"
 	"github.com/askasoft/pango/gog"
 	"github.com/askasoft/pango/iox"
@@ -123,6 +124,21 @@ func (c *Client) doCall(req *http.Request, result any) error {
 	return re
 }
 
+func (c *Client) DoGet(ctx context.Context, url string, result any) error {
+	return c.retryForError(ctx, func() error {
+		return c.doGet(ctx, url, result)
+	})
+}
+
+func (c *Client) doGet(ctx context.Context, url string, result any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+
+	return c.doCall(req, result)
+}
+
 func (c *Client) DoPost(ctx context.Context, url string, source, result any) error {
 	return c.retryForError(ctx, func() error {
 		return c.doPost(ctx, url, source, result)
@@ -144,6 +160,13 @@ func (c *Client) doPost(ctx context.Context, url string, source, result any) err
 	}
 
 	return c.doCall(req, result)
+}
+
+func (c *Client) ListModels(ctx context.Context) ([]*models.Model, error) {
+	url := c.endpoint("/models")
+	res := &models.ListModelsResponse{}
+	err := c.DoGet(ctx, url, res)
+	return res.Data, err
 }
 
 // https://platform.openai.com/docs/api-reference/embeddings/create

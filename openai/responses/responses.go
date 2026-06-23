@@ -3,9 +3,9 @@ package responses
 import (
 	"strings"
 
+	"github.com/askasoft/goopenai/openai/internal"
 	"github.com/askasoft/goopenai/openai/shared"
 	"github.com/askasoft/pango/asg"
-	"github.com/askasoft/pango/doc/jsonx"
 	"github.com/askasoft/pango/net/dataurl"
 	"github.com/askasoft/pango/net/mimex"
 )
@@ -73,10 +73,6 @@ const (
 	ResponseStatusQueued     ResponseStatus = "queued"
 	ResponseStatusIncomplete ResponseStatus = "incomplete"
 )
-
-func toString(o any) string {
-	return jsonx.Prettify(o)
-}
 
 // Options for streaming responses. Only set this when you set `stream: true`.
 type ResponseStreamOptions struct {
@@ -506,7 +502,7 @@ type CreateRequest struct {
 }
 
 func (r *CreateRequest) String() string {
-	return toString(r)
+	return internal.ToString(r)
 }
 
 // The phase of an assistant message.
@@ -891,7 +887,7 @@ type ResponseUsage struct {
 }
 
 func (u *ResponseUsage) String() string {
-	return toString(u)
+	return internal.ToString(u)
 }
 
 // A detailed breakdown of the output tokens.
@@ -1110,7 +1106,7 @@ type CreateResponse struct {
 }
 
 func (r *CreateResponse) String() string {
-	return toString(r)
+	return internal.ToString(r)
 }
 
 func (r *CreateResponse) OutputText() string {

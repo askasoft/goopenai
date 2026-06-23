@@ -5,8 +5,8 @@ import (
 	"mime"
 	"path/filepath"
 
+	"github.com/askasoft/goopenai/openai/internal"
 	"github.com/askasoft/pango/asg"
-	"github.com/askasoft/pango/doc/jsonx"
 	"github.com/askasoft/pango/net/dataurl"
 	"github.com/askasoft/pango/net/mimex"
 	"github.com/askasoft/pango/str"
@@ -18,10 +18,6 @@ const (
 	TypeInputAudio = "input_audio"
 	TypeFile       = "file"
 )
-
-func toString(o any) string {
-	return jsonx.Prettify(o)
-}
 
 type ChatMessage struct {
 	// The role of the messages author. One of system, user, assistant, or function.
@@ -348,7 +344,7 @@ func (cr *ChatCompletionRequest) MessageRuneCount() (cnt int) {
 }
 
 func (cr *ChatCompletionRequest) String() string {
-	return toString(cr)
+	return internal.ToString(cr)
 }
 
 type ChoiceAudio struct {
@@ -490,7 +486,7 @@ type ChatCompletionResponse struct {
 }
 
 func (cr *ChatCompletionResponse) String() string {
-	return toString(cr)
+	return internal.ToString(cr)
 }
 
 // Answer return first choice content

@@ -51,6 +51,20 @@ func testNewOpenAI(t *testing.T) *Client {
 	return oai
 }
 
+func TestOpenAIListModels(t *testing.T) {
+	oai := testNewOpenAI(t)
+	if oai == nil {
+		return
+	}
+
+	res, err := oai.ListModels(context.Background())
+	if err != nil {
+		t.Fatalf("OpenAI.ListModels(): %v", err)
+	} else {
+		fmt.Println(res)
+	}
+}
+
 func TestOpenAICreateTextEmbeddingsAda002(t *testing.T) {
 	oai := testNewOpenAI(t)
 	if oai == nil {

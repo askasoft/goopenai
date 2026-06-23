@@ -5,14 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/askasoft/pango/doc/jsonx"
+	"github.com/askasoft/goopenai/openai/internal"
 	"github.com/askasoft/pango/net/httpx"
 	"github.com/askasoft/pango/num"
 )
-
-func toString(o any) string {
-	return jsonx.Prettify(o)
-}
 
 // The intended purpose of the file. Supported values are `assistants`,
 // `assistants_output`, `batch`, `batch_output`, `fine-tune`, `fine-tune-results`,
@@ -156,5 +152,5 @@ type FileObject struct {
 }
 
 func (fo *FileObject) String() string {
-	return toString(fo)
+	return internal.ToString(fo)
 }

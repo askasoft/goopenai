@@ -3,7 +3,7 @@ package embeddings
 import (
 	"fmt"
 
-	"github.com/askasoft/pango/doc/jsonx"
+	"github.com/askasoft/goopenai/openai/internal"
 	"github.com/askasoft/pango/str"
 )
 
@@ -25,7 +25,7 @@ type TextEmbeddingsRequest struct {
 }
 
 func (te *TextEmbeddingsRequest) String() string {
-	return toString(te)
+	return internal.ToString(te)
 }
 
 func (te *TextEmbeddingsRequest) InputRuneCount() int {
@@ -69,7 +69,7 @@ type TextEmbeddingsResponse struct {
 }
 
 func (te *TextEmbeddingsResponse) String() string {
-	return toString(te)
+	return internal.ToString(te)
 }
 
 func (te *TextEmbeddingsResponse) Embedding() []float64 {
@@ -77,8 +77,4 @@ func (te *TextEmbeddingsResponse) Embedding() []float64 {
 		return te.Data[0].Embedding
 	}
 	return nil
-}
-
-func toString(o any) string {
-	return jsonx.Prettify(o)
 }
